@@ -99,12 +99,19 @@ func getHealthMconfig() *mconfigprotos.CwfGatewayHealthConfig {
 func removeCIDREndpoints(endpoints []*mconfigprotos.CwfGatewayHealthConfigGrePeer) []*mconfigprotos.CwfGatewayHealthConfigGrePeer {
 	ret := []*mconfigprotos.CwfGatewayHealthConfigGrePeer{}
 	for _, endpoint := range endpoints {
-		_, _, err := net.ParseCIDR(endpoint.Ip)
+		parsedIP, _, err := net.ParseCIDR(endpoint.Ip)
 		if err != nil {
 			ret = append(ret, endpoint)
 			continue
 		}
-		glog.Infof("Not monitoring CIDR formatted IP: %s. Health service only supports monitoring specific endpoints", endpoint.Ip)
+		if !strings.HasSuffix(parsedIP.String(), ".0") {
+			parsedGrePeer := &mconfigprotos.CwfGatewayHealthConfigGrePeer{
+				Ip: parsedIP.String(),
+			}
+			ret = append(ret, parsedGrePeer)
+			continue
+		}
+		glog.Infof("Not monitoring GRE peer: %s. Health service only supports monitoring specific (non-subnet) endpoints", endpoint.Ip)
 	}
 	return ret
 }
